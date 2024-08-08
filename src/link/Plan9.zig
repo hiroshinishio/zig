@@ -1421,36 +1421,35 @@ pub fn lowerUav(
     // ...
     const gpa = self.base.comp.gpa;
     const gop = try self.uavs.getOrPut(gpa, uav);
-    if (!gop.found_existing) {
-        const val = Value.fromInterned(uav);
-        const name = try std.fmt.allocPrint(gpa, "__anon_{d}", .{@intFromEnum(uav)});
+    if (gop.found_existing) return .{ .mcv = .{ .load_direct = gop.value_ptr.* } };
+    const val = Value.fromInterned(uav);
+    const name = try std.fmt.allocPrint(gpa, "__anon_{d}", .{@intFromEnum(uav)});
 
-        const index = try self.createAtom();
-        const got_index = self.allocateGotIndex();
-        gop.value_ptr.* = index;
-        // we need to free name latex
-        var code_buffer = std.ArrayList(u8).init(gpa);
-        const res = try codegen.generateSymbol(&self.base, pt, src_loc, val, &code_buffer, .{ .none = {} }, .{ .parent_atom_index = index });
-        const code = switch (res) {
-            .ok => code_buffer.items,
-            .fail => |em| return .{ .fail = em },
-        };
-        const atom_ptr = self.getAtomPtr(index);
-        atom_ptr.* = .{
-            .type = .d,
-            .offset = undefined,
-            .sym_index = null,
-            .got_index = got_index,
-            .code = Atom.CodePtr.fromSlice(code),
-        };
-        _ = try atom_ptr.getOrCreateSymbolTableEntry(self);
-        self.syms.items[atom_ptr.sym_index.?] = .{
-            .type = .d,
-            .value = undefined,
-            .name = name,
-        };
-    }
-    return .{ .mcv = .{ .load_direct = gop.value_ptr.* } };
+    const index = try self.createAtom();
+    const got_index = self.allocateGotIndex();
+    gop.value_ptr.* = index;
+    // we need to free name latex
+    var code_buffer = std.ArrayList(u8).init(gpa);
+    const res = try codegen.generateSymbol(&self.base, pt, src_loc, val, &code_buffer, .{ .none = {} }, .{ .parent_atom_index = index });
+    const code = switch (res) {
+        .ok => code_buffer.items,
+        .fail => |em| return .{ .fail = em },
+    };
+    const atom_ptr = self.getAtomPtr(index);
+    atom_ptr.* = .{
+        .type = .d,
+        .offset = undefined,
+        .sym_index = null,
+        .got_index = got_index,
+        .code = Atom.CodePtr.fromSlice(code),
+    };
+    _ = try atom_ptr.getOrCreateSymbolTableEntry(self);
+    self.syms.items[atom_ptr.sym_index.?] = .{
+        .type = .d,
+        .value = undefined,
+        .name = name,
+    };
+    return .{ .mcv = .{ .load_direct = index } };
 }
 
 pub fn getUavVAddr(self: *Plan9, uav: InternPool.Index, reloc_info: link.File.RelocInfo) !u64 {
