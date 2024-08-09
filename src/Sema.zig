@@ -17798,7 +17798,7 @@ fn zirBuiltinSrc(
             .ty = .slice_const_u8_sentinel_0_type,
             .ptr = try pt.intern(.{ .ptr = .{
                 .ty = .manyptr_const_u8_sentinel_0_type,
-                .base_addr = .{ .anon_decl = .{
+                .base_addr = .{ .uav = .{
                     .orig_ty = .slice_const_u8_sentinel_0_type,
                     .val = try pt.intern(.{ .aggregate = .{
                         .ty = array_ty,
