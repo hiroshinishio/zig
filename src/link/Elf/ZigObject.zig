@@ -782,14 +782,7 @@ pub fn getOrCreateMetadataForLazySymbol(
         },
     };
     switch (metadata.state.*) {
-        .unused => {
-            const symbol_index = try self.newSymbolWithAtom(gpa, 0);
-            const sym = self.symbol(symbol_index);
-            if (lazy_sym.kind != .code) {
-                sym.flags.needs_zig_got = true;
-            }
-            metadata.symbol_index.* = symbol_index;
-        },
+        .unused => metadata.symbol_index.* = try self.newSymbolWithAtom(gpa, 0),
         .pending_flush => return metadata.symbol_index.*,
         .flushed => {},
     }
@@ -854,9 +847,6 @@ pub fn getOrCreateMetadataForDecl(
             if (variable.is_threadlocal and any_non_single_threaded) {
                 sym.flags.is_tls = true;
             }
-        }
-        if (!sym.flags.is_tls and decl.typeOf(mod).zigTypeTag(mod) != .Fn) {
-            sym.flags.needs_zig_got = true;
         }
         gop.value_ptr.* = .{ .symbol_index = symbol_index };
     }
@@ -966,14 +956,6 @@ fn updateDeclCode(
                 sym.value = 0;
                 esym.st_value = 0;
 
-                if (stt_bits != elf.STT_FUNC) {
-                    if (!elf_file.base.isRelocatable()) {
-                        log.debug("  (writing new offset table entry)", .{});
-                        assert(sym.flags.has_zig_got);
-                        const extra = sym.extra(elf_file);
-                        try elf_file.zig_got.writeOne(elf_file, extra.zig_got);
-                    }
-                }
                 if (stt_bits == elf.STT_FUNC) {
                     const extra = sym.extra(elf_file);
                     const offset_table = self.offsetTablePtr().?;
@@ -989,13 +971,6 @@ fn updateDeclCode(
 
         sym.value = 0;
         esym.st_value = 0;
-        if (stt_bits != elf.STT_FUNC) {
-            sym.flags.needs_zig_got = true;
-            if (!elf_file.base.isRelocatable()) {
-                const gop = try sym.getOrCreateZigGotEntry(sym_index, elf_file);
-                try elf_file.zig_got.writeOne(elf_file, gop.index);
-            }
-        }
     }
 
     if (elf_file.base.child_pid) |pid| {
@@ -1321,15 +1296,7 @@ fn updateLazySymbol(
     errdefer self.freeDeclMetadata(elf_file, symbol_index);
 
     local_sym.value = 0;
-    if (sym.kind != .code) {
-        local_sym.flags.needs_zig_got = true;
-    }
     local_esym.st_value = 0;
-
-    if (!elf_file.base.isRelocatable()) {
-        const gop = try local_sym.getOrCreateZigGotEntry(symbol_index, elf_file);
-        try elf_file.zig_got.writeOne(elf_file, gop.index);
-    }
 
     const shdr = elf_file.shdrs.items[output_section_index];
     const file_offset = shdr.sh_offset + @as(u64, @intCast(atom_ptr.value));
