@@ -716,9 +716,7 @@ pub fn lowerUav(
         .fail => |em| return .{ .fail = em },
     };
     try self.uavs.put(gpa, uav, .{ .symbol_index = sym_index });
-    return .{ .mcv = .{
-        .load_symbol = elf_file.symbol(sym_index).esym_index,
-    } };
+    return .{ .mcv = .{ .load_symbol = sym_index } };
 }
 
 pub fn getOrCreateMetadataForLazySymbol(
@@ -1085,8 +1083,8 @@ pub fn updateNav(
             // Extern variable gets a .got entry only.
             const name = @"extern".name.toSlice(ip);
             const lib_name = @"extern".lib_name.toSlice(ip);
-            const esym_index = try self.getGlobalSymbol(elf_file, name, lib_name);
-            elf_file.symbol(self.symbol(esym_index)).flags.needs_got = true;
+            const sym_index = try self.getGlobalSymbol(elf_file, name, lib_name);
+            self.symbol(sym_index).flags.needs_got = true;
             return;
         },
         else => nav_val,
