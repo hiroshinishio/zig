@@ -565,7 +565,7 @@ pub fn getInputSection(self: ZigObject, atom: Atom, macho_file: *MachO) macho.se
 
 pub fn flushModule(self: *ZigObject, macho_file: *MachO, tid: Zcu.PerThread.Id) !void {
     // Handle any lazy symbols that were emitted by incremental compilation.
-    if (self.lazy_syms.getPtr(.none)) |metadata| {
+    if (self.lazy_syms.getPtr(.anyerror_type)) |metadata| {
         const pt: Zcu.PerThread = .{ .zcu = macho_file.base.comp.module.?, .tid = tid };
 
         // Most lazy symbols can be updated on first use, but
