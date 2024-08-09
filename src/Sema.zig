@@ -27668,21 +27668,21 @@ fn fieldVal(
                     return Air.internedToRef(enum_val.toIntern());
                 },
                 .Struct, .Opaque => {
-                    if (try sema.namespaceLookupVal(block, src, child_type.getNamespaceIndex(mod), field_name)) |inst| {
-                        return inst;
+                    switch (child_type.toIntern()) {
+                        .empty_struct_type, .anyopaque_type => {}, // no namespace
+                        else => if (try sema.namespaceLookupVal(block, src, child_type.getNamespaceIndex(mod), field_name)) |inst| {
+                            return inst;
+                        },
                     }
                     return sema.failWithBadMemberAccess(block, child_type, src, field_name);
                 },
-                else => {
-                    const msg = msg: {
-                        const msg = try sema.errMsg(src, "type '{}' has no members", .{child_type.fmt(pt)});
-                        errdefer msg.destroy(sema.gpa);
-                        if (child_type.isSlice(mod)) try sema.errNote(src, msg, "slice values have 'len' and 'ptr' members", .{});
-                        if (child_type.zigTypeTag(mod) == .Array) try sema.errNote(src, msg, "array values have 'len' member", .{});
-                        break :msg msg;
-                    };
-                    return sema.failWithOwnedErrorMsg(block, msg);
-                },
+                else => return sema.failWithOwnedErrorMsg(block, msg: {
+                    const msg = try sema.errMsg(src, "type '{}' has no members", .{child_type.fmt(pt)});
+                    errdefer msg.destroy(sema.gpa);
+                    if (child_type.isSlice(mod)) try sema.errNote(src, msg, "slice values have 'len' and 'ptr' members", .{});
+                    if (child_type.zigTypeTag(mod) == .Array) try sema.errNote(src, msg, "array values have 'len' member", .{});
+                    break :msg msg;
+                }),
             }
         },
         .Struct => if (is_pointer_to) {
