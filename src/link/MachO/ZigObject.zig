@@ -79,23 +79,17 @@ pub fn deinit(self: *ZigObject, allocator: Allocator) void {
     self.atoms_indexes.deinit(allocator);
     self.atoms_extra.deinit(allocator);
 
-    {
-        var it = self.navs.iterator();
-        while (it.next()) |entry| {
-            entry.value_ptr.exports.deinit(allocator);
-        }
-        self.navs.deinit(allocator);
+    for (self.navs.values()) |*meta| {
+        meta.exports.deinit(allocator);
     }
+    self.navs.deinit(allocator);
 
     self.lazy_syms.deinit(allocator);
 
-    {
-        var it = self.uavs.iterator();
-        while (it.next()) |entry| {
-            entry.value_ptr.exports.deinit(allocator);
-        }
-        self.uavs.deinit(allocator);
+    for (self.uavs.values()) |*meta| {
+        meta.exports.deinit(allocator);
     }
+    self.uavs.deinit(allocator);
 
     for (self.relocs.items) |*list| {
         list.deinit(allocator);
@@ -1770,8 +1764,8 @@ const TlvInitializer = struct {
     }
 };
 
-const NavTable = std.AutoHashMapUnmanaged(InternPool.Nav.Index, AvMetadata);
-const UavTable = std.AutoHashMapUnmanaged(InternPool.Index, AvMetadata);
+const NavTable = std.AutoArrayHashMapUnmanaged(InternPool.Nav.Index, AvMetadata);
+const UavTable = std.AutoArrayHashMapUnmanaged(InternPool.Index, AvMetadata);
 const LazySymbolTable = std.AutoArrayHashMapUnmanaged(InternPool.Index, LazySymbolMetadata);
 const RelocationTable = std.ArrayListUnmanaged(std.ArrayListUnmanaged(Relocation));
 const TlvInitializerTable = std.AutoArrayHashMapUnmanaged(Atom.Index, TlvInitializer);
